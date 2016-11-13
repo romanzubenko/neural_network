@@ -128,7 +128,6 @@ class InputUnit:
 		self.value = val
 		self.grad = 0
 
-
 class Network:
 	def __init__(self):
 		print 'initializing network...'
@@ -136,13 +135,24 @@ class Network:
 		
 		self.connectedLayers = []
 		
-		self.addConnectedLayer(3)
-		self.addConnectedLayer(3)
+		self.addConnectedLayer(5)
+		self.addConnectedLayer(5)
+		self.addConnectedLayer(2)
 
-		self.output = Neuron(self.connectedLayers[-1])
-		
-		self.mse = MSEUnit(self.output, 0)
+		self.output = self.connectedLayers[-1]
+		self.addMSE()
 		print 'network ready'
+
+	def addMSE(self):
+		self.mseLayer = []
+		if len(self.connectedLayers) > 0:
+			lastLayer = self.connectedLayers[-1]
+		else:
+			lastLayer = self.inputLayer;		
+
+		for neuron in lastLayer:
+			self.mseLayer.append(MSEUnit(neuron, 0))
+
 
 	def addConnectedLayer(self, num_neurons):
 		if len(self.connectedLayers) > 0:
@@ -166,37 +176,33 @@ class Network:
 			for neuron in layer:
 				neuron.forward()
 
-		self.output.forward()
-
-		return self.output.value
+		return [neuron.value for neuron in self.output]
 
 	def backward(self):
-		self.mse.backward()
-		self.output.backward()
-
+		for mse in self.mseLayer:
+			mse.backward()
 
 		for layer in reversed(self.connectedLayers):
 			for neuron in layer:
 				neuron.backward()
 
 	def updateParams(self):
-		self.output.updateParams()
-
 		for layer in reversed(self.connectedLayers):
 			for neuron in layer:
 				neuron.updateParams()
 
 
-	def train(self, input_arr, label):
+	def train(self, input_arr, labels):
 		self.forward(input_arr)
 		
-		self.mse.targetValue = label
-		self.mse.forward()
+		for index in range(0, len(labels)):
+			self.mseLayer[index].targetValue = labels[index]
+			self.mseLayer[index].forward()
 
 		self.backward()
 		self.updateParams()
 
-		return self.mse.value
+		return self.mseLayer[0].value
 	
 
 
@@ -206,16 +212,16 @@ print network.forward([0,1])
 epoch = 0
 error = 5
 
-while error > 0.0001:
+while error > 0.001:
 	epoch += 1
 
 	if epoch > 25000:
 		LEARNING_RATE = 0.01
 	error = 0
-	error += network.train([0,0],0)
-	error += network.train([1,0],0)
-	error += network.train([0,1],0)
-	error += network.train([1,1],1)
+	error += network.train([0,0],[1,1])
+	error += network.train([1,0],[0,1])
+	error += network.train([0,1],[1,0])
+	error += network.train([1,1],[0,0])
 
 	if epoch % 100 == 0:
 		print 'epoch : ', epoch, '\t error: ', error
